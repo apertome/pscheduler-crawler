@@ -1,0 +1,15 @@
+{
+  "name": "pscheduler-crawler",
+  "version": "0.0.1",
+  "description": "A simple pScheduler webcrawler",
+  "main": "bin/crawler.js",
+  "author": "Michael Johnson",
+  "license": "Apache 2.0",
+  "dependencies": {
+    "async": "^2.6.1",
+    "request": "^2.87.0",
+    "request-promise-native": "^1.0.5",
+    "underscore": "^1.9.1",
+    "url-parse": "^1.4.1"
+  }
+}
