@@ -4,10 +4,14 @@ const pscheduler_hosts = [
 
 const rp = require('request-promise-native');
 const request = require('request');
+const async = require('async');
 //require('request-promise-native').debug = true;
 const _ = require('underscore');
 
-const async = require('async');
+const eachOfLimit = require('async/eachOfLimit');
+//import eachOf from 'async/eachOf';
+
+const max_parallel = 10;
 
 var task_count = 0;
 var run_count = 0;
@@ -59,6 +63,65 @@ function get_tasks( task_options, url ) {
 
 }
 
+function get_data( url ) {
+    return new Promise (( resolve, reject) => {
+        //console.log("GET url", url);        
+
+        /*var res = { url: url, 
+                 values: rp( task_options ) 
+        };
+        */
+
+        //console.log("task_options", task_options);
+
+        var task_options = _.extend( global_options, 
+            {
+                    uri: url
+                });
+
+        var res = rp( task_options );
+        resolve(res);
+        return res;
+    });
+    
+}
+
+async function getProcessedData(url) {
+    let v;
+    try {
+        console.log("getProcessedData getting runs ..");
+        console.log("url", url);
+        var task_options = _.extend( global_options,
+            {
+                    uri: url
+                });
+        //console.log("options", task_options);
+        v = await rp( task_options );
+
+        //console.log("results", results);
+
+        var cb = function(item) {
+         //   console.log("cb item", item);
+
+        }
+/*
+        async.eachSeries(results, function(result, next) {
+            console.log("ASYNC result", result);
+            getProcessedData
+
+
+        }, cb);
+        */
+        //v = "success";
+
+    } catch(e) {
+        console.log("ERROR", e);
+        //v = await downloadFallbackData(url);
+    }
+    //console.log("v", v);
+    return v;
+}
+
 rp(options)
     .then(function ( jsonData ) {
         //var tasks = [];
@@ -83,7 +146,7 @@ rp(options)
         }
        return Promise.all( tasks )
             .then((results) => {
-                console.log("task results", results);
+                //console.log("task results", results);
                 return results;
                 //var url = results.url;
                 //var runs = [];
@@ -109,13 +172,13 @@ rp(options)
             }).catch(err => console.log(err));  // First rejected promise
     })
     .then(function( jsonData ) {
-        console.log("retrieving run urls ...");
+        console.log("generating run listing urls ...");
         //console.log("jsonData", jsonData);
            // var results = jsonData;
                 for(var k in task_urls ) {
                     task_count++;
                     var url = task_urls[ k ];
-                    console.log("task URL to generate run url", url);
+                    //console.log("task URL to generate run url", url);
                     //console.log("TASK RESULT", task_result ); // Result of all resolve as an array
                     //console.log("TASK results", JSON.stringify( task_results, null, '  ' ) ); // Result of all resolve as an array
                     //console.log("TASK results length", task_results.length); // Result of all resolve as an array
@@ -126,12 +189,22 @@ rp(options)
                         });
                     //console.log("run_options", run_options);
                     console.log("run_url", run_url);
-                    runs.push( get_tasks( run_options, run_url ) );
+                    run_urls.push( run_url );
+                    //runs.push( get_tasks( run_options, run_url ) );
+
                 }
 
+                return run_urls;
+
+
+
+/*
+
+        */
+                /*
                 return Promise.all( runs )
                     .then((run_results) => {
-                            console.log("run_results", run_results); // This is an array of arrays (one per task)
+                            console.log("run_results count", run_results.length); // This is an array of arrays (one per task)
                             for(var p in run_results) {
                                 var res = run_results[p];
                                 for(var q in res) {
@@ -143,41 +216,65 @@ rp(options)
 
                             }
                             console.log("run_results runs", run_results.length);
-                            console.log("run_results urls", result_urls);
                             console.log("run_results count urls", result_urls.length);
-                            //return run_results;
                             return result_urls;
 
                         }).catch(err => console.log(err));
+                        */
                 console.log("task_count", task_count);
                 console.log("run_count", run_count);
+                
 
     })
     .then(function( jsonData ) {
-        var result_urls = jsonData;
-        console.log("result_urls results", result_urls);
-                        for(var n in result_urls ) {
-                            var run = result_urls[ n ];
-                            var result_url = run;
-                            //console.log("result URL", result_url);
-                    var result_options = _.extend( global_options,
-                        {
-                            uri: result_url
-                        });
-                            //console.log("result_options", result_options);
-                            //console.log("result", result.values);
-                            //console.log("result values", result.values);
-                            //console.log("result count", result.values.length);
-                            result_count++;
-                            result_data.push( get_tasks( result_options, result_url ) ) ;
-                        }
-                return Promise.all( result_data )
-                    .then((run_results) => {
-                            console.log("run_data_results", run_results);
-                            return run_results;
-                            console.log("run_data_ count runs", run_count);
+        console.log("retrieving run URLS ... trying async ...");
 
-                        }).catch(err => console.log(err));
+/*
+        var result_urls = jsonData;
+        for (var i in run_urls ) {
+            var url = run_urls[i];
+            var res = getProcessedData( url );
+            result_urls = _.union( result_urls, res ) ;
+            console.log("result_urls async", result_urls);
+            if ( i > 10 ) {
+                break;
+
+            }
+        }
+        */
+
+        async.eachOfLimit(run_urls, max_parallel, function (value, key, callback) {
+            console.log("key, value ", key, value);
+            var url = value;
+            var run_results = getProcessedData( url );
+            console.log("run_results", run_results);
+            result_data.push( run_results );
+            //return callback();
+            callback();
+
+        }, function( err ) {
+            //console.log("DONE!? result_data", result_data);
+            console.log("err", err);
+            if (err) return next(err);
+            Promise.all( result_data )
+                .then((result_results) => {
+                    console.log("RESULT RESULTS", result_results);
+
+                }).catch(err => console.log(err));
+
+            
+
+        });
+
+
+        function eachOfCallback( error ){
+            console.log("error", error);
+            console.log("result_data", result_data);
+
+
+        }
+ 
+
 
     })
    /* 
@@ -190,6 +287,7 @@ rp(options)
         // Crawling failed...
         console.log("Crawling failed; err ", err );
     });
+
 
 function get_runs ( ) {
 
