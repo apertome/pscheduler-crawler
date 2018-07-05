@@ -1,5 +1,5 @@
 const pscheduler_hosts = [
-    'https://perfsonar-dev9.grnoc.iu.edu/pscheduler/tasks'
+    'https://perfsonar-dev.grnoc.iu.edu/pscheduler/tasks'
 ];
 
 function get_pscheduler_url( hostname ) {
@@ -16,8 +16,7 @@ const _ = require('underscore');
 const eachOfLimit = require('async/eachOfLimit');
 //import eachOf from 'async/eachOf';
 
-//const max_parallel = 10;
-var max_parallel = 20;
+const max_parallel = 10;
 
 const fs = require('fs');
 
@@ -66,7 +65,10 @@ const options = {
 function save_json_file( filename, data ) {
     var json = JSON.stringify(data);
     fs.writeFile(filename, json, 'utf8', function(err) {
-        if (err) throw err;
+        if (err) {
+            console.log("Error saving file: " + filename + "; error: " + err);
+            throw err;
+        }
         console.log('completed saving', filename);
     });
 }
@@ -103,7 +105,8 @@ function get_data( url ) {
 
         var task_options = _.extend( global_options, 
             {
-                    uri: url
+                    
+                uri: url
                 });
 
         var res = rp( task_options );
@@ -277,7 +280,7 @@ rp(options)
             //console.log("RESULT key, value ", key, value);
             //console.log("run_ruls", run_urls);
             var url = value;
-            console.log("retrieving RESULT url", url);
+            //console.log("retrieving RESULT url", url);
             try {
             var run_data = await getProcessedData( url );
             result_data.push( run_data );
@@ -318,7 +321,9 @@ rp(options)
                     var elapsedTime = (endTime - startTime) / 1000;
                     var rate = num_results / elapsedTime;
                     console.log("Retrieved " + num_results + " results in " + elapsedTime + "seconds ( " + rate + " results per second); parallel limit ", max_parallel);
+                    console.log("saving result data ..");
                     save_json_file( out_files.result, result_data );
+                    console.log("saved");
                     //console.log('Result data', result_results);
                     return callback();
 
