@@ -104,7 +104,12 @@ async function getData() {
     //await getResults(urls, result_url_data, out_files.result_url_data, "result_url_data")
 
     //console.log("Getting result URLs");
-    await getResultUrls(run_urls, result_urls);
+    var cb = function( urls ) {
+       
+       getResultsFromURLs( urls, result_data, out_files.results )
+
+    }
+    await getResultUrls(run_urls, result_urls, cb);
 
     console.log("Formatting result URLs", result_urls);
     //result_urls = await formatResultUrls(result_url_data);
@@ -114,8 +119,8 @@ async function getData() {
 
 
     console.log("Getting results");
-    urls = result_urls;
-    var ret = await getResultsFromURLs( result_urls, result_data, out_files.results );
+    //await getResultsFromURLs( result_urls, result_data, out_files.results );
+    console.log("RESULT_DATA", result_data);
 
 }
 getData();
@@ -135,7 +140,6 @@ function generateRunUrls( task_urls ) {
         
 async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
             console.log("GETTING RESULTS! " + datatype + " Count, url ex:", urls.length, urls[0]);
-            //max_parallel = 1; // TODO: REMOVE
             var num_results = urls.length;
             console.log("Starting to retrieve " + num_results + " results");
             var startTime = new Date();
@@ -146,8 +150,8 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
                         //console.log("run_data", run_data);
                         result_arr.push( run_data );
 
-                    //cbGetResults(result_arr)
-                    //callback();
+                        //cbGetResults(result_arr)
+                        //callback();
                     }
                     , async function( err ) {
                         //console.log("result_arr", result_arr);
@@ -193,18 +197,14 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
             });
         };
 
-        async function getResultUrls ( urls, result_arr ) {
+        async function getResultUrls ( urls, result_arr, cb ) {
             //var urls = run_urls;
             console.log("now in getResultURLs!!!", urls);
             console.log("result_urls", result_urls);
             console.log("result_url_data", result_url_data);
-            /*
-            return new Promise ( function( resolve, reject ) {
-                callback();
-                resolve();
-            });
-            */
-            await retrieveResultUrls( urls, result_arr, out_files.result_urls );
+            await retrieveResultUrls( urls, result_arr, out_files.result_urls, cb );
+            
+            
 
             return new Promise ( function( resolve, reject ) {
                 resolve();
@@ -245,7 +245,7 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
     }
 
 
-        async function retrieveResultUrls( urls, result_arr, filename ) {
+        async function retrieveResultUrls( urls, result_arr, filename, cb ) {
             console.log("Retrieving result urls ...", urls);
             async.eachOfLimit(urls, max_parallel, async function( value, key ) {
                 var url = value;
@@ -263,8 +263,10 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
             async function( err ) {
                 console.log("err", err);
                 result_urls = result_arr;
-                await save_json_file( out_files.result_urls, result_urls );
-                console.log("RESULT_URRLS ARY", result_urls);
+            console.log("RESULT_URRLS ARY", result_urls);
+            cb( result_urls );
+                //await save_json_file( out_files.result_urls, result_urls );
+                //console.log("RESULT_URRLS ARY", result_urls);
                 //result_urls = result_arr;
                 if (err) {
                     console.log("result_url ERR:", err);
