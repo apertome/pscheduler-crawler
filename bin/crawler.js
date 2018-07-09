@@ -295,7 +295,7 @@ rp(options)
             });
         };
 
-        var retrieveResultUrls = async function( urls, result_arr, filename) {
+        var retrieveResultUrls = function( urls, result_arr, filename) {
             console.log("Retrieving runs; run urls:", run_urls);
             async.eachOfLimit(urls, max_parallel, cbGetResultUrls(result_arr), 
                     function( err ) {
@@ -333,17 +333,6 @@ rp(options)
                             resolve();
                             return result_urls;
                         });
-                    /*
-
-                    return callback();
-                    //run_results = result_results;
-
-                    return result_urls;
-
-                }).catch(err => console.log(err));
-                */
-
-
 
             });
         }
