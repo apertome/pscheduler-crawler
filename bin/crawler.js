@@ -51,7 +51,6 @@ var tasks = [];
 var task_data = [];
 var task_urls = [];
 var runs = [];
-var run_data = [];
 var run_urls = [];
 var result_url_data = [];
 var result_urls = [];
@@ -65,6 +64,7 @@ var result_errors = [];
     get_json_filenames( 'runs', ps_host, out_files );
     get_json_filenames( 'results', ps_host, out_files );
     get_json_filenames( 'result_urls', ps_host, out_files );
+    get_json_filenames( 'result_url_data', ps_host, out_files );
     
     console.log("out_files", out_files);
 
@@ -83,305 +83,224 @@ const options = {
 console.log("first options", options);
 
 
-// get task listing
-rp(options)
-    .then(function ( taskResponse ) {
-        //var tasks = [];
-            //tasks.push( [url].map( ({ URL }) => get_tasks( task_options, url ) ) ) ;
-            //tasks.push( [ url ].map( get_tasks( task_options, url ) ) );A
-        task_urls = taskResponse;
-        //console.log("task_urls", taskResponse);
-        save_json_file( out_files.task_urls, task_urls );
-        //console.log("tasks after pushing", tasks);
-        return new Promise( function( resolve, reject ) {
-            resolve();
-            return taskResponse;            
-        });
-    })
-    .catch(function( err  ) {
-        console.log("error retrieve task listing", err);
-                // Handle the error here
-                //     });
-    })
-/*
-    .then(function( jsonData ) {
-       return new Promise(( resolve, reject ) => { 
-        //console.log("TASKS", tasks);
-        console.log("requesting task listing ...");
-        //console.log("jsonData", jsonData);
+
+async function getData() {
+    console.log("Getting task URLs");
+    var task_urls  = await rp(options);
+    console.log("task urls", task_urls[0]);
+    await save_json_file( out_files.task_urls, task_urls );
+
+    console.log("Getting tasks");
+    await getResultsFromURLs( task_urls, tasks, out_files.tasks ); 
+
+    console.log("Generating run URLs");
+    run_urls = await generateRunUrls( task_urls );
+    console.log("run urls", run_urls[0]);
+    await save_json_file( out_files.run_urls, run_urls );
+
+    console.log("Getting run results");
+    var urls = run_urls;
+    console.log("RUN URLS", urls);
+    //await getResults(urls, result_url_data, out_files.result_url_data, "result_url_data")
+
+    //console.log("Getting result URLs");
+    await getResultUrls(run_urls, result_urls);
+
+    console.log("Formatting result URLs", result_urls);
+    //result_urls = await formatResultUrls(result_url_data);
+    //await save_json_file( out_files.result_urls, result_urls );
+
+    console.log("MAIN result_urls", result_urls);
 
 
-        console.log("number of tasks", jsonData.length);
-        //console.log("tasks values", tasks.values);
-        for( var i in jsonData ) {
-            const url = jsonData[i];
-            task_urls.push( url );
-            var task_options = _.extend( global_options, 
-                {
-                    uri: url
-                });
-            tasks.push( get_tasks( task_options, url ) ) ;
-        }
-        resolve();
+    console.log("Getting results");
+    urls = result_urls;
+    var ret = await getResultsFromURLs( result_urls, result_data, out_files.results );
 
-        return jsonData;
-       });
-       */
-
-        /*
-       return Promise.all( tasks )
-            .then((results) => {
-                console.log("TASKS", results);
-                task_data = results;
-                add_pscheduler_info( results, ps_host, ps_url );
-                save_json_file( out_files.tasks, results );
-                return results;
-            }).catch(err => console.log(err));  // First rejected promise
-    })
-            */
-
-/*
-    .then(function( data ) {
-        console.log("task_data", task_data);
-        console.log("out_files.tasks", out_files.tasks);
-        save_json_file( out_files.tasks, task_data );
-    })
-  */  
-    .then(function( jsonData ) {
-        console.log("generating run listing urls ...");
-        //console.log("jsonData", jsonData);
-           // var results = jsonData;
-           return new Promise(function(resolve, reject) {
-                for(var k in task_urls ) {
-                    task_count++;
-                    var url = task_urls[ k ];
-                    var run_url = url + "/runs";
-                    var run_options = _.extend( global_options,
-                        {
-                            uri: run_url
-                        });
-                    run_urls.push( run_url );
-                }
-                resolve();
-                console.log("task_count", task_count);
-                console.log("run_count", run_count);
-
-           });
-
-    })
-    .catch( function(err ) {
-        console.log("Error generating run urls", err);
-
-    })
-    .then(function( ) {
-        console.log("retrieving run URLS ... trying async ...");
+}
+getData();
 
 
-        var cbGetResultUrls = function( results_arr ) {
-            return async function( value, key, callback ) {
-                var url = value;
-                var run_results = await getProcessedData( url );
-                //console.log("run_results", run_results);
-                results_arr.push( run_results );
-                //result_url_data.push( run_results );
-                //return callback();
-                //callback();
-            }
+function generateRunUrls( task_urls ) {
+    var ret = [];
+    for(var k in task_urls ) {
+        task_count++;
+        var url = task_urls[ k ];
+        var run_url = url + "/runs";
+        ret.push( run_url );
+    }
+    return ret;
 
-        };
-
-        var cbGetResults = function( results_arr ) {
-            return async function( value, key, callback ) {
-
-            //console.log("RESULT key, value ", key, value);
-            //console.log("run_ruls", run_urls);
-            var url = value;
-            //console.log("retrieving RESULT url", url);
-            //try {
-                var run_data = await getProcessedData( url );
-                results_arr.push( run_data );
-                /*
-                if ( datatype == "tasks" ) {
-                    tasks.push( run_data );
-
-                } else if ( datatype == "results" ) {
-                result_data.push( run_data );
-                }
-                */
-            //} catch( err ) {
-                //console.log("cbGetResults ERR: ", err.StatusCodeError);
-
-            //}
-            //return callback(null, run_data);
-            //return run_data;
-            }
-
-        };
-
-        var getTasks = function( callback ) {
-            var urls = task_urls;
-            console.log("now in getTasks!!!", urls[0]);
-            console.log("task_urls", task_urls);
-            getResultsFromURLs( urls, tasks, out_files.tasks, "tasks", callback );
-            return new Promise ( function( resolve, reject ) {
-                resolve();
-                //return callback();
-            });
-
-        };
-
-        var getResultUrls = function( callback ) {
-            var urls = run_urls;
-            console.log("now in getResultURLs!!!", urls[0]);
-            retrieveResultUrls( urls, result_url_data, out_files.result_urls, "result_urls", callback );
-            console.log("result_urls", result_urls);
-            console.log("result_url_data", result_url_data);
-            return new Promise ( function( resolve, reject ) {
-                resolve();
-                //return callback();
-            });
-
-        };
-
-        var getResults = function( callback ) {
-            console.log('now in getResults!!!');
-            var urls = result_urls;
-            console.log("result urls!!!", urls);
-            getResultsFromURLs( urls, result_data, out_files.results, "results", callback );
-            return new Promise ( function( resolve, reject ) {
-                resolve();
-                //return callback();
-            });
-        };
-
-
-        var getResultsFromURLs = async function( urls, result_arr, filename, datatype, cb ) {
-            console.log("GETTING RESULTS! Count, url ex:", urls.length, urls[0]);
+}
+        
+async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
+            console.log("GETTING RESULTS! " + datatype + " Count, url ex:", urls.length, urls[0]);
             //max_parallel = 1; // TODO: REMOVE
             var num_results = urls.length;
             console.log("Starting to retrieve " + num_results + " results");
             var startTime = new Date();
-            async.eachOfLimit( urls, max_parallel, cbGetResults(result_arr), function( err ) {
-                console.log("DONE!? result_arr", result_arr.length);
-                //console.log("DONE!? result_data", result_data.length);
-                //console.log("RESULT_DATA", result_arr);
-                //if (err) return next(err);
-                if (err) {
-                    if ( err.StatusCode == 404 ) {
-                        console.log("Result not found:", err.options.uri);
+            async.eachOfLimit( urls, max_parallel, 
+                    async function( value, key ) {
+                        var url = value;
+                        var run_data = await getProcessedData( url );
+                        //console.log("run_data", run_data);
+                        result_arr.push( run_data );
 
-                    } else {
-                        console.log("!!!RESULT ERR:", err);
-                        return err;
+                    //cbGetResults(result_arr)
+                    //callback();
                     }
-                }
-                console.log('Result data returned!');
-                var endTime = new Date();
-                var elapsedTime = (endTime - startTime) / 1000;
-                var rate = num_results / elapsedTime;
-                console.log("Retrieved " + num_results + " results in " + elapsedTime + "seconds ( " + rate + " results per second); parallel limit ", max_parallel);
-                console.log("saving result data ..");
-                add_pscheduler_info( result_arr, ps_host, ps_url );
-                save_json_file( filename, result_arr );
-                console.log("saved");
-                cb();
-                //console.log('Result data', result_results);
-        
-                return new Promise( function( resolve, reject ) {
-                    resolve();
-                });
+                    , async function( err ) {
+                        //console.log("result_arr", result_arr);
+                        if ( typeof result_arr == "undefined" ) {
+                            console.log("DONE?? no results");
+                        } else {
+                            console.log("DONE!? result_arr", result_arr.length);
+                        }
+                        //console.log("DONE!? result_data", result_data.length);
+                        //console.log("RESULT_DATA", result_arr);
+                        //if (err) return next(err);
+                        if (err) {
+                            if ( err.StatusCode == 404 ) {
+                                console.log("Result not found:", err.options.uri);
+
+                            } else {
+                                console.log("!!!RESULT ERR:", err);
+                                //return err;
+                            }
+                        }
+                        console.log('Result data returned!');
+                        var endTime = new Date();
+                        var elapsedTime = (endTime - startTime) / 1000;
+                        var rate = num_results / elapsedTime;
+                        console.log("Retrieved " + num_results + " results in " + elapsedTime + "seconds ( " + rate + " results per second); parallel limit ", max_parallel);
+                        await add_pscheduler_info( result_arr, ps_host, ps_url );
+                        console.log("saving result data ..", datatype);
+                        await save_json_file( filename, result_arr );
+                        console.log("saved");
+                        //return result_arr;
+                        //getrescb();
+                        //console.log('Result data', result_results);
+                        //
+                        //
 
 
+
+
+                    });
+            return new Promise ( function( resolve, reject ) {
+                resolve();
+                //return callback();
             });
         };
 
-        var retrieveResultUrls = function( urls, result_arr, filename) {
-            console.log("Retrieving runs; run urls:", run_urls);
-            async.eachOfLimit(urls, max_parallel, cbGetResultUrls(result_arr), 
-                    function( err ) {
-                        console.log("err", err);
-                        if (err) {
-                            console.log("result_url ERR:", err);
-                            return err;
-                            //return next(err);
-                        } else {
-                            console.log("result_url NO ERROR!!!");
-
-                        }
-
-
-                            for( var s in result_arr ) {
-                                var row = result_arr[s];
-                                if ( _.isEmpty( row ) ) {
-                                    continue;
-                                }
-                                for( var t in row ) {
-                                    var resurl = row[t];
-                                    result_urls.push(resurl);
-
-                                }
-                            }
-
-                            result_arr = result_urls;
-
-                            //console.log("'tmparr'!!!", tmparr);
-                            console.log("'RESULT_URLS'!!!", result_urls);
-
-                        return new Promise( function( resolve, reject ) {
-                            save_json_file( filename, result_urls );
-
-                            resolve();
-                            return result_urls;
-                        });
-
+        async function getResultUrls ( urls, result_arr ) {
+            //var urls = run_urls;
+            console.log("now in getResultURLs!!!", urls);
+            console.log("result_urls", result_urls);
+            console.log("result_url_data", result_url_data);
+            /*
+            return new Promise ( function( resolve, reject ) {
+                callback();
+                resolve();
             });
-        }
+            */
+            await retrieveResultUrls( urls, result_arr, out_files.result_urls );
 
-        var gencb = function( err, results ) {
-                console.log('It came back with this ' + results);
+            return new Promise ( function( resolve, reject ) {
+                resolve();
+                //return callback();
+            });
+
+        };
+        
+
+    async function formatResultUrls( result_arr ) {
+        console.log("result_arr", result_arr);
+                for( var s in result_arr ) {
+                    var row = result_arr[s];
+                    if ( _.isEmpty( row ) ) {
+                        continue;
+                    }
+                    for( var t in row ) {
+                        var resurl = row[t];
+                        result_urls.push(resurl);
+
+                    }
+                }
+
+
+                //result_arr = result_urls;
+                console.log('result_urls/arr', result_urls);
+
+                //console.log("'tmparr'!!!", tmparr);
+                console.log("'RESULT_URLS'!!!", result_urls);
+
+                //await save_json_file( out_files.result_urls, result_urls );
+            //    return result_urls;
+            return new Promise ( function( resolve, reject ) {
+                resolve();
+                //return callback();
+            });
+
+    }
+
+
+        async function retrieveResultUrls( urls, result_arr, filename ) {
+            console.log("Retrieving result urls ...", urls);
+            async.eachOfLimit(urls, max_parallel, async function( value, key ) {
+                var url = value;
+                var run_results = await getProcessedData( url );
+                if ( ! _.isEmpty( run_results ) ) {
+                    //console.log("run_results", run_results);
+                    for(var q in run_results) {
+                        result_arr.push( run_results[q] );
+                    }
+                }
+                //console.log("result_arr", result_arr);
+
+
+            },
+            async function( err ) {
                 console.log("err", err);
+                result_urls = result_arr;
+                await save_json_file( out_files.result_urls, result_urls );
+                console.log("RESULT_URRLS ARY", result_urls);
+                //result_urls = result_arr;
+                if (err) {
+                    console.log("result_url ERR:", err);
+                    //return err;
+                    //return next(err);
+                } else {
+                    console.log("result_url NO ERROR!!!");
+
+                }
+
+
+                //urlcb();
+                   return new Promise( async function( resolve, reject ) {
+
+                   resolve();
+                //urlcb();
+                //return result_urls;
+                });
+
+            });
 
         }
-        async.series([ getTasks, getResultUrls, getResults], function( url, outcb) {
-        //async.series([ getTasks, getResultUrls ], function( url, outcb) {
-            //outcb();
-            
-        }, function (asdfcb) {
-                console.log('All Result URLS and Results Done');
-                asdfcb();
-    
-        }); 
-        //async.eachSeries([ "getResultUrls", "getResults" ], gencb); 
-
-
-    })
-    .catch(function (err) {
-        // Crawling failed...
-        console.log("Crawling failed; err ", err );
-    })
-    .then(function( data ) {
-        //big_next();
-
-    });
-
-
-}, function( err ) {
-    console.log("END error", err);
-
-});
-/*
-function pass_options_to_promises( promises, options ) {
-    Promise.all( promises.map(callback => callback(val) )
-            .then(values => { 
-                // executed when all promises resolved, 
-                // values is the array of values resolved by the promises
-            })
-            .catch(err => {  
-                // catch if single promise fails to resolve
+        
+        async function getResults( result_urls, result_arr, filename, datatype ) {
+            console.log('now in getResults!!!');
+            var urls = result_urls; 
+            console.log(datatype, "result urls!!!", urls);
+            var output = await getResultsFromURLs( urls, result_arr, filename, datatype );
+            //callback();
+            return new Promise ( function( resolve, reject ) {
+                resolve();
             });
-            }
+        };
+});
 
-*/
+
 
 function save_json_file( filename, data ) {
     var json = JSON.stringify(data);
@@ -391,6 +310,9 @@ function save_json_file( filename, data ) {
             throw err;
         }
         console.log('completed saving', filename);
+        return new Promise( function( resolve, reject ) {
+            resolve();
+        });
     });
 }
 
@@ -411,30 +333,6 @@ function get_tasks( task_options, url ) {
         return res;
     });
 
-}
-
-function get_data( url ) {
-    return new Promise (( resolve, reject) => {
-        //console.log("GET url", url);        
-
-        /*var res = { url: url, 
-                 values: rp( task_options ) 
-        };
-        */
-
-        //console.log("task_options", task_options);
-
-        var task_options = _.extend( global_options, 
-            {
-                    
-                uri: url
-                });
-
-        var res = rp( task_options );
-        resolve(res);
-        return res;
-    });
-    
 }
 
 async function getProcessedData(url) {
