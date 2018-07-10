@@ -1,3 +1,5 @@
+#!/usr/bin/node -max_old_space_size=5120
+
 const pscheduler_hosts = [
     'perfsonar-dev8.grnoc.iu.edu',
     'perfsonar-dev9.grnoc.iu.edu',
@@ -92,7 +94,7 @@ async function getData() {
     await save_json_file( out_files.task_urls, task_urls );
 
     console.log("Getting tasks");
-    await getResultsFromURLs( task_urls, tasks, out_files.tasks ); 
+    await getResultsFromURLs( task_urls, tasks, out_files.tasks, "tasks" ); 
 
     console.log("Generating run URLs");
     run_urls = await generateRunUrls( task_urls );
@@ -101,7 +103,7 @@ async function getData() {
 
     console.log("Getting run results");
     var urls = run_urls;
-    console.log("RUN URLS", urls);
+    //console.log("RUN URLS", urls);
     //await getResults(urls, result_url_data, out_files.result_url_data, "result_url_data")
 
     //console.log("Getting result URLs");
@@ -150,8 +152,16 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
                     async function( value, key ) {
                         var url = value;
                         var run_data = await getProcessedData( url );
-                        //console.log("run_data", run_data);
+                        if ( datatype == "tasks" ) {
+                            //console.log("run_data", run_data);
+                            if ( !( "crawler" in run_data ) ) {
+                                run_data.crawler = {};
+                                run_data.crawler.id = url;
+
+                            }
+                        }
                         result_arr.push( run_data );
+
 
                         //cbGetResults(result_arr)
                         //callback();
@@ -202,9 +212,11 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
 
         async function getResultUrls ( urls, result_arr, cb ) {
             //var urls = run_urls;
-            console.log("now in getResultURLs!!!", urls);
+            console.log("now in getResultURLs!!!");
+            /*
             console.log("result_urls", result_urls);
             console.log("result_url_data", result_url_data);
+            */
             await retrieveResultUrls( urls, result_arr, out_files.result_urls, cb );
             
             
@@ -249,7 +261,7 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
 
 
         async function retrieveResultUrls( urls, result_arr, filename, cb ) {
-            console.log("Retrieving result urls ...", urls);
+            console.log("Retrieving result urls ...");
             async.eachOfLimit(urls, max_parallel, async function( value, key ) {
                 var url = value;
                 var run_results = await getProcessedData( url );
@@ -266,7 +278,7 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
             async function( err ) {
                 console.log("err", err);
                 //result_urls = result_arr;
-            console.log("RESULT_URRLS ARY", result_urls);
+            //console.log("RESULT_URRLS ARY", result_urls);
             cb( result_urls );
                 //await save_json_file( out_files.result_urls, result_urls );
                 //console.log("RESULT_URRLS ARY", result_urls);
@@ -395,6 +407,20 @@ function get_pscheduler_url( hostname ) {
     return ret;
 }
 
+function get_id_from_url( url ) {
+    var id = url;
+    var re = /\/([^\/]+)$/;
+    var arr = re.exec( url );
+    if ( arr !== null ) { 
+        id = arr[1];
+    }
+    //console.log("id", id, "url", url);
+
+    return id;
+
+
+}
+
 // adds pscheduler info to an existing object
 function add_pscheduler_info( objArray, host, url ) {
     if ( ! _.isArray( objArray ) || objArray.length == 0 ) {
@@ -408,6 +434,9 @@ function add_pscheduler_info( objArray, host, url ) {
         }
         row.crawler["pscheduler-host"] = host;
         row.crawler["pscheduler-url"] = url;
+        if ( "href" in row ) {
+            row.crawler.id = row.href;
+        }
 
     }
 
