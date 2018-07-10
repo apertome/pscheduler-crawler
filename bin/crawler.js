@@ -1,6 +1,7 @@
 const pscheduler_hosts = [
     'perfsonar-dev8.grnoc.iu.edu',
-    'perfsonar-dev9.grnoc.iu.edu'
+    'perfsonar-dev9.grnoc.iu.edu',
+    'perfsonar-dev.grnoc.iu.edu'
 ];
 
 const rp = require('request-promise-native');
@@ -121,6 +122,8 @@ async function getData() {
     console.log("Getting results");
     //await getResultsFromURLs( result_urls, result_data, out_files.results );
     console.log("RESULT_DATA", result_data);
+
+    big_next();
 
 }
 getData();
@@ -262,7 +265,7 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
             },
             async function( err ) {
                 console.log("err", err);
-                result_urls = result_arr;
+                //result_urls = result_arr;
             console.log("RESULT_URRLS ARY", result_urls);
             cb( result_urls );
                 //await save_json_file( out_files.result_urls, result_urls );
