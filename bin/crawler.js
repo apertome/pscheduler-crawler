@@ -2,8 +2,13 @@
 
 const pscheduler_hosts = [
     'perfsonar-dev8.grnoc.iu.edu',
-    'perfsonar-dev9.grnoc.iu.edu',
-    'perfsonar-dev.grnoc.iu.edu'
+    'perfsonar-dev.grnoc.iu.edu',
+    'perfsonardev0.internet2.edu',
+    'ps-4-0-xenial.qalab.geant.net',
+    'ps-4-0.qalab.geant.net',
+    'perfsonar-liva.lbl.gov',
+    'ps-dev-el7-1.es.net',
+    'ps-dev-el6-1.es.net',
 ];
 
 const rp = require('request-promise-native');
