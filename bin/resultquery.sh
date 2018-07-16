@@ -1,10 +1,10 @@
 #!/bin/bash
 curl -H 'Content-Type: application/json' 'http://localhost:9200/results/_search?pretty' -d '{
-   "from": 0, "size": 5,
+   "from": 0, "size": 50,
    "query": {
         "bool": {
                 "must": [
-                  { "match": { "state": "nonstart" } }
+                  { "match": { "crawler.pscheduler-host.keyword": "ps-4-0.qalab.geant.net" } }
         ]
     }
   }
@@ -12,6 +12,8 @@ curl -H 'Content-Type: application/json' 'http://localhost:9200/results/_search?
 
 
 exit
+                  
+# { "match": { "state": "nonstart" } }
 
 curl 'http://localhost:9200/_search?pretty' -d '{
    "from": 0, "size": 5,

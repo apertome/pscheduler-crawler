@@ -369,8 +369,9 @@ async function getProcessedData(url) {
         //console.log("options", task_options);
         v = rp( task_options )
             .catch((err) => {
-                console.log("ERR RETRIEVING", err.StatusCodeError);
-                
+                console.log("ERR RETRIEVING", url, err.StatusCode, err.message);
+                //console.log("ERR", err);
+
             });
 
         /*
