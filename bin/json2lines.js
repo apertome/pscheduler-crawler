@@ -7,21 +7,27 @@ const fs = require('fs');
 
 var minimist = require('minimist');
 
+const jsonltools = require('./jsonltools');
+
 var args = minimist(process.argv.slice(2));
 
 var infile = args._[0]
 
 fs.readFile(infile, 'utf8', function (err, data) {
     if (err) throw err;
-    obj = JSON.parse(data);
+    var arr = JSON.parse(data);
 
-    var rows = "";
+    var rows = jsonltools.arrayToJsonLines( arr );
 
-    obj.forEach( function( row ) {
+    /*
+    arr.forEach( function( row ) {
         //rows += row + "\n";
         console.log( JSON.stringify( row ) );
 
     });
+    */
+
+    console.log( rows );
 
     //fs.writeFile( rows )
 

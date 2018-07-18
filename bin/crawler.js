@@ -23,12 +23,16 @@ const max_parallel = 10;
 
 const fs = require('fs');
 
-const util = require('util')
-const fs_writeFile = util.promisify(fs.writeFile)
+const util = require('util');
+const fs_writeFile = util.promisify(fs.writeFile);
+
+const out_format = 'jsonl';
+
+const jsonltools = require('./jsonltools');
 
 function get_json_filenames( name, ps_host, object ) {
     var ret = object;
-    ret[ name ] = name + "_" + ps_host + ".json";
+    ret[ name ] = name + "_" + ps_host + "." + out_format;
     return ret;
 }
 
@@ -183,13 +187,13 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
                 //console.log("RESULT_DATA", result_arr);
                 //if (err) return next(err);
                 if (err) {
-                    if ( err.StatusCode == 404 ) {
-                        console.log("Result not found:", err.options.uri);
+                    if ( err.statusCode == 404 ) {
+                        console.log("Result not found (this is ok):", err.options.uri);
 
                     } else {
-                        console.log("!!!RESULT ERR:", err.message);
+                        console.log("!!!RESULT ERR:", err.statusCode, err.message);
                         //return err;
-                        reject( err );
+                        reject( err.message );
                     }
                 }
                 console.log('Result data returned!');
@@ -212,10 +216,8 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
 
 
             });
-            return new Promise ( function( resolve, reject ) {
                 resolve();
                 //return callback();
-            });
     });
 }
 
@@ -321,9 +323,17 @@ async function getResults( result_urls, result_arr, filename, datatype ) {
 
 
 function save_json_file( filename, data ) {
-    var json = JSON.stringify(data);
+    console.log("save format ... ", out_format);
+    var out_data;
+    if ( out_format == "json" ) {
+        var json = JSON.stringify(data);
+        out_data = json;
+    } else {
+        var jsonl = jsonltools.arrayToJsonLines( data );
+        out_data = jsonl;
+    }
     return new Promise( function( resolve, reject ) {
-        fs_writeFile(filename, json, 'utf8', function(err) {
+        fs_writeFile(filename, out_data, 'utf8', function(err) {
             if (err) {
                 console.log("Error saving file: " + filename + "; error: " + err);
                 reject( err );
