@@ -28,7 +28,13 @@ const fs_writeFile = util.promisify(fs.writeFile);
 
 const out_format = 'jsonl';
 
+const statusFile = 'status.json';
+
 const jsonltools = require('./jsonltools');
+
+var poll_status = {};
+
+
 
 function get_json_filenames( name, ps_host, object ) {
     var ret = object;
@@ -94,16 +100,51 @@ const options = {
 
 console.log("first options", options);
 
+async function updateStatus( collection, ts ) {
+    if ( !( "collection" in poll_status) ) poll_status[collection] = {};
+    poll_status[collection].lastpoll = ts;
+    var json = JSON.stringify(poll_status);
+    return new Promise ( function( resolve, reject ) {
+        let filename = statusFile;
+        fs_writeFile(filename, json, 'utf8', function(err) {
+            if (err) {
+                console.log("Error saving file: " + filename + "; error: " + err);
+                reject( err );
+                throw err;
+            }
+            console.log('completed saving STATUS', filename);
+            console.log("!!!!STATUS", poll_status);
+            resolve();
+        });
 
+
+    });
+}
 
 async function getData() {
     console.log("Getting task URLs");
+    var startQueryTime = new Date();
+    var collection = ps_host;
+
     var task_urls  = await rp(options);
     console.log("task urls", task_urls[0]);
     await save_json_file( out_files.task_urls, task_urls );
+    await updateStatus( collection, startQueryTime );
+    /*
+    try {
+        var task_urls  = await rp(options);
+        console.log("task urls", task_urls[0]);
+        await save_json_file( out_files.task_urls, task_urls );
+        let stat = await updateStatus( collection, startQueryTime );
+        console.log("stat", stat);
+    } catch( e ) {
+        console.log("Error retrieving task urls");
+
+    }
+    */
 
     console.log("Getting tasks");
-    await getResultsFromURLs( task_urls, tasks, out_files.tasks, "tasks" ); 
+    await getResultsFromURLs( task_urls, tasks, out_files.tasks, "tasks" );
 
     console.log("Generating run URLs");
     run_urls = await generateRunUrls( task_urls );
@@ -127,17 +168,16 @@ async function getData() {
     //result_urls = await formatResultUrls(result_url_data);
     //await save_json_file( out_files.result_urls, result_urls );
 
-    console.log("MAIN result_urls", result_urls);
-
-
     console.log("Getting results");
     //await getResultsFromURLs( result_urls, result_data, out_files.results );
     console.log("RESULT_DATA", result_data);
+
 
     big_next();
 
 }
 getData();
+console.log("result error messages:", result_errors);
 
 
 function generateRunUrls( task_urls ) {
@@ -377,9 +417,14 @@ async function getProcessedData(url) {
             //console.log("options", task_options);
             v = await rp( task_options )
         .catch((err) => {
-            console.log("ERR RETRIEVING", url, err.StatusCode, err.message);
+            console.log("ERR RETRIEVING", url, err.statusCode, err.message);
             //console.log("ERR", err);
-            reject(err);
+            // Assume 404s are just things that have hit the schedule horizon
+            // and been dropped; other errors we consider an error
+            if ( err.statusCode != 404 ) {
+                result_errors.push( err.message );
+                reject(err);
+            }
         });
 
         } catch(e) {
