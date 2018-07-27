@@ -25,6 +25,9 @@ const fs = require('fs');
 
 const util = require('util');
 const fs_writeFile = util.promisify(fs.writeFile);
+const fs_readFile = util.promisify(fs.readFile);
+
+const out_path = '/ps_data/live/';
 
 const out_format = 'jsonl';
 
@@ -32,13 +35,20 @@ const statusFile = 'status.json';
 
 const jsonltools = require('./jsonltools');
 
-var poll_status = {};
+const startTime = new Date();
 
+// below, set flag to 'a' for append or 'w' for write
+const data_write_options = {
+    'encoding': 'utf8',
+    'flag': 'a'
+};
+
+var poll_status = {};
 
 
 function get_json_filenames( name, ps_host, object ) {
     var ret = object;
-    ret[ name ] = name + "_" + ps_host + "." + out_format;
+    ret[ name ] = out_path + name + "_" + ps_host + "." + out_format;
     return ret;
 }
 
@@ -100,12 +110,31 @@ const options = {
 
 console.log("first options", options);
 
+async function getStatus( collection ) {
+    return new Promise ( function( resolve, reject ) {
+        let filename = out_path + statusFile;
+        fs_readFile(filename, 'utf8', function(err, data) {
+            if (err) {
+                console.log("Error reading file: " + filename + "; error: " + err);
+                // failure to open status file is not an error, just means there is no status data and we need to read data without start/end restrictions
+                return resolve();
+            }
+            console.log('completed loading STATUS', filename);
+            poll_status = JSON.parse( data );
+            console.log("!!!!STATUS", poll_status);
+            resolve();
+        });
+
+
+    });
+}
+
 async function updateStatus( collection, ts ) {
     if ( !( "collection" in poll_status) ) poll_status[collection] = {};
-    poll_status[collection].lastpoll = ts;
+    poll_status[collection].lastpoll = ts.toISOString();
     var json = JSON.stringify(poll_status);
     return new Promise ( function( resolve, reject ) {
-        let filename = statusFile;
+        let filename = out_path + statusFile;
         fs_writeFile(filename, json, 'utf8', function(err) {
             if (err) {
                 console.log("Error saving file: " + filename + "; error: " + err);
@@ -122,14 +151,17 @@ async function updateStatus( collection, ts ) {
 }
 
 async function getData() {
-    console.log("Getting task URLs");
     var startQueryTime = new Date();
     var collection = ps_host;
+
+    console.log("Getting status ...");
+    await getStatus(ps_host);
+
+    console.log("Getting task URLs");
 
     var task_urls  = await rp(options);
     console.log("task urls", task_urls[0]);
     await save_json_file( out_files.task_urls, task_urls );
-    await updateStatus( collection, startQueryTime );
     /*
     try {
         var task_urls  = await rp(options);
@@ -144,33 +176,42 @@ async function getData() {
     */
 
     console.log("Getting tasks");
-    await getResultsFromURLs( task_urls, tasks, out_files.tasks, "tasks" );
+    await getResultsFromURLs( task_urls, tasks, out_files.tasks, ps_host, "tasks" );
 
     console.log("Generating run URLs");
     run_urls = await generateRunUrls( task_urls );
     console.log("run urls", run_urls[0]);
     await save_json_file( out_files.run_urls, run_urls );
 
-    console.log("Getting run results");
+    console.log("Getting runs");
     var urls = run_urls;
     //console.log("RUN URLS", urls);
-    //await getResults(urls, result_url_data, out_files.result_url_data, "result_url_data")
 
     //console.log("Getting result URLs");
-    var cb = function( urls ) {
-       
-       getResultsFromURLs( urls, result_data, out_files.results )
+    var cb = async function( urls ) {
+
+       await getResultsFromURLs( urls, result_data, out_files.runs, ps_host, "runs" )
 
     }
-    await getResultUrls(run_urls, result_urls, cb);
+    await getResultUrls(run_urls, result_urls, cb, ps_host);
 
-    console.log("Formatting result URLs", result_urls);
+
+    await updateStatus( collection, startQueryTime );
+
+
+    tasks = [];
+    run_urls = [];
+    result_data = [];
+    result_urls = [];
+
+
+    //console.log("Formatting result URLs", result_urls);
     //result_urls = await formatResultUrls(result_url_data);
     //await save_json_file( out_files.result_urls, result_urls );
 
-    console.log("Getting results");
+    //console.log("Getting results");
     //await getResultsFromURLs( result_urls, result_data, out_files.results );
-    console.log("RESULT_DATA", result_data);
+    //console.log("RESULT_DATA", result_data);
 
 
     big_next();
@@ -191,24 +232,47 @@ function generateRunUrls( task_urls ) {
     return ret;
 
 }
+
+function getTimeLimitedUrl( hostname, url ) {
+    var now = new Date().toISOString();
+
+    //console.log("hostname, url, poll_status", hostname, url, poll_status);
+
+    if ( ( hostname in poll_status ) && ( "lastpoll" in poll_status[hostname] ) ) {
+        let pollStartTime = poll_status[hostname].lastpoll; //.toISOString();
+        //console.log("pollStartTime", pollStartTime);
+        url += encodeURI ( "?start=" + pollStartTime + "&end=" + now  );
+    }
+
+    //console.log("updated url: ", url);
+
+    return url;
+
+}
         
-async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
+async function getResultsFromURLs( urls, result_arr, filename, hostname, datatype ) {
     return new Promise ( function( resolve, reject ) {
         console.log("GETTING RESULTS! " + datatype + " Count, url ex:", urls.length, urls[0]);
         var num_results = urls.length;
         console.log("Starting to retrieve " + num_results + " results");
-        var startTime = new Date();
         async.eachOfLimit( urls, max_parallel, 
             async function( value, key ) {
-                var url = value;
+                var url = getTimeLimitedUrl( hostname, value);
+                //console.log("getting results from url", url);
                 var run_data = await getProcessedData( url );
                 if ( datatype == "tasks" ) {
                     //console.log("run_data", run_data);
-                    if ( !( "crawler" in run_data ) ) {
-                        run_data.crawler = {};
-                        run_data.crawler.id = url;
-
+                        //run_data.crawler["pscheduler-host"] = hostname;
+                }
+                if ( !( "crawler" in run_data ) ) {
+                    run_data.crawler = {};
+                    run_data.crawler["pscheduler-host"] = ps_host;
+                    run_data.crawler["pscheduler-url"] = ps_url;
+                    if ( "href" in run_data ) {
+                        run_data.crawler.href = run_data.href;
                     }
+                    run_data.crawler.id = url;
+                    run_data.crawler["test-type"] = datatype;
                 }
                 result_arr.push( run_data );
 
@@ -241,7 +305,7 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
                 var elapsedTime = (endTime - startTime) / 1000;
                 var rate = num_results / elapsedTime;
                 console.log("Retrieved " + num_results + " results in " + elapsedTime + "seconds ( " + rate + " results per second); parallel limit ", max_parallel);
-                await add_pscheduler_info( result_arr, ps_host, ps_url );
+                //await add_pscheduler_info( result_arr, ps_host, ps_url );
                 console.log("saving result data ..", datatype);
                 await save_json_file( filename, result_arr );
                 console.log("saved");
@@ -261,7 +325,7 @@ async function getResultsFromURLs( urls, result_arr, filename, datatype ) {
     });
 }
 
-async function getResultUrls ( urls, result_arr, cb ) {
+async function getResultUrls ( urls, result_arr, cb, hostname ) {
     //var urls = run_urls;
     console.log("now in getResultURLs!!!");
     return new Promise ( async function( resolve, reject ) {
@@ -269,7 +333,7 @@ async function getResultUrls ( urls, result_arr, cb ) {
            console.log("result_urls", result_urls);
            console.log("result_url_data", result_url_data);
            */
-        await retrieveResultUrls( urls, result_arr, out_files.result_urls, cb );
+        await retrieveResultUrls( urls, result_arr, out_files.result_urls, cb, hostname );
 
 
 
@@ -310,11 +374,13 @@ async function formatResultUrls( result_arr ) {
 }
 
 
-async function retrieveResultUrls( urls, result_arr, filename, cb ) {
+async function retrieveResultUrls( urls, result_arr, filename, cb, hostname ) {
     return new Promise ( function( resolve, reject ) {
         console.log("Retrieving result urls ...");
         async.eachOfLimit(urls, max_parallel, async function( value, key ) {
-            var url = value;
+            //var url = value;
+            var url = getTimeLimitedUrl( hostname, value);
+            //console.log("retrieving url ", url);
             var run_results = await getProcessedData( url );
             if ( ! _.isEmpty( run_results ) ) {
                 //console.log("run_results", run_results);
@@ -345,17 +411,7 @@ async function retrieveResultUrls( urls, result_arr, filename, cb ) {
     });
 
 }
-        
-async function getResults( result_urls, result_arr, filename, datatype ) {
-    return new Promise ( async function( resolve, reject ) {
-        console.log('now in getResults!!!');
-        var urls = result_urls; 
-        console.log(datatype, "result urls!!!", urls);
-        var output = await getResultsFromURLs( urls, result_arr, filename, datatype );
-        //callback();
-        resolve();
-    });
-}
+
 
 });
 //});
@@ -373,7 +429,7 @@ function save_json_file( filename, data ) {
         out_data = jsonl;
     }
     return new Promise( function( resolve, reject ) {
-        fs_writeFile(filename, out_data, 'utf8', function(err) {
+        fs_writeFile(filename, out_data, data_write_options, function(err) {
             if (err) {
                 console.log("Error saving file: " + filename + "; error: " + err);
                 reject( err );
@@ -456,22 +512,26 @@ function get_id_from_url( url ) {
 }
 
 // adds pscheduler info to an existing object
-function add_pscheduler_info( objArray, host, url ) {
-    if ( ! _.isArray( objArray ) || objArray.length == 0 ) {
-        return;
-    }
-    for(var i in objArray ) {
-        var row = objArray[i];
-        if ( typeof row == "undefined" ) return;
-        if ( ! ( "crawler" in row ) ) {
-            row.crawler = {};
+async function add_pscheduler_info( objArray, host, url ) {
+    return new Promise ( async function( resolve, reject ) {
+        if ( ! _.isArray( objArray ) || objArray.length == 0 ) {
+            console.log("Failed adding pscheduler metadata; not an array");
+            return;
         }
-        row.crawler["pscheduler-host"] = host;
-        row.crawler["pscheduler-url"] = url;
-        if ( "href" in row ) {
-            row.crawler.id = row.href;
-        }
+        for(var i in objArray ) {
+            var row = objArray[i];
+            if ( typeof row == "undefined" ) return;
+            if ( ! ( "crawler" in row ) ) {
+                row.crawler = {};
+            }
+            row.crawler["pscheduler-host"] = host;
+            row.crawler["pscheduler-url"] = url;
+            if ( "href" in row ) {
+                row.crawler.id = row.href;
+            }
 
-    }
+        }
+        resolve();
+    });
 
 }
