@@ -1,14 +1,20 @@
 #!/usr/bin/node -max_old_space_size=5120
 
 const pscheduler_hosts = [
-    'perfsonar-dev8.grnoc.iu.edu',
     'perfsonar-dev.grnoc.iu.edu',
+    //'perfsonar-dev5.grnoc.iu.edu', // removed, does not run pscheduler
+    'perfsonar-dev8.grnoc.iu.edu',
+    'perfsonar-liva.lbl.gov',
     'perfsonardev0.internet2.edu',
     'ps-4-0-xenial.qalab.geant.net',
     'ps-4-0.qalab.geant.net',
-    'perfsonar-liva.lbl.gov',
-    'ps-dev-el7-1.es.net',
+    'ps-bionic.qalab.geant.net',
+    'ps-dev-deb8-1.es.net',
+    'ps-dev-deb8-2.es.net',
     'ps-dev-el6-1.es.net',
+    'ps-dev-el7-1.es.net',
+    'pstest2.geant.carnet.hr',
+    't2-psdev.rrze.uni-erlangen.de',
 ];
 
 const rp = require('request-promise-native');
@@ -159,7 +165,12 @@ async function getData() {
 
     console.log("Getting task URLs");
 
-    var task_urls  = await rp(options);
+    var task_urls = await rp(options)
+        .catch(err => function(err) {
+            console.error("Error retrieving tasks; host unreachable: " + ps_host);
+            console.error("Error: ", err);
+            return big_next();
+        });
     console.log("task urls", task_urls[0]);
     await save_json_file( out_files.task_urls, task_urls );
     /*
@@ -252,6 +263,10 @@ function getTimeLimitedUrl( hostname, url ) {
         
 async function getResultsFromURLs( urls, result_arr, filename, hostname, datatype ) {
     return new Promise ( function( resolve, reject ) {
+        if ( typeof urls == "undefined" ) {
+            return resolve("URLs undefined");
+
+        }
         console.log("GETTING RESULTS! " + datatype + " Count, url ex:", urls.length, urls[0]);
         var num_results = urls.length;
         console.log("Starting to retrieve " + num_results + " results");
@@ -335,7 +350,7 @@ async function getResultUrls ( urls, result_arr, cb, hostname ) {
            */
         await retrieveResultUrls( urls, result_arr, out_files.result_urls, cb, hostname );
 
-
+    cb();
 
         resolve();
         //return callback();
