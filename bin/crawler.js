@@ -444,6 +444,9 @@ function save_json_file( filename, data ) {
         out_data = jsonl;
     }
     return new Promise( function( resolve, reject ) {
+
+        if ( out_data == "" ) return resolve();
+
         fs_writeFile(filename, out_data, data_write_options, function(err) {
             if (err) {
                 console.log("Error saving file: " + filename + "; error: " + err);
