@@ -13,7 +13,7 @@ const urllib = require('url');
 const _ = require('underscore');
 
 
-const activeHosts = ['http://ps1.es.net:8096/lookup/activehosts.json'];
+//const activeHosts = ['http://ps1.es.net:8096/lookup/activehosts.json'];
 
 const global_options = {
     headers: {
@@ -25,15 +25,16 @@ const global_options = {
 
 };
 
-
+/*
 activeHosts.forEach( async function( url ) {
     getHostStatusAndData( url ).then(result => {
         console.log("result returned to foreach loop\n", JSON.stringify(result));
     });
 
 });
+*/
 
-async function getHostStatusAndData( url ) {
+exports.getHostStatusAndData = async function ( url ) {
 
     return new Promise ( function( resolve, reject ) {
 
@@ -88,9 +89,9 @@ async function getHostStatusAndData( url ) {
         });
 
         const options = _.extend( global_options,
-                {
-                    uri: url
-                });
+        {
+            uri: url
+        });
 
         console.log("options", options);
         var startReqTime = new Date();
@@ -101,7 +102,6 @@ async function getHostStatusAndData( url ) {
                 var elapsed = endReqTime - startReqTime;
                 _.extend(host.stats, { request_time: elapsed } );
                 result.data = res;
-
 
                 return res;
             });
