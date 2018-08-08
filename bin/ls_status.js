@@ -17,7 +17,7 @@ const rest_crawler = require('./rest_crawler.js');
 
 const activeHosts = ['http://ps1.es.net:8096/lookup/activehosts.json'];
 
-const ls_types = [ 'service', 'host', 'interface', 'psmetadata' ];
+const ls_types = [ 'service', 'host', 'interface', 'psmetadata', 'person', 'pstest' ];
 
 const global_options = {
     headers: {
@@ -31,28 +31,20 @@ const global_options = {
 
 activeHosts.forEach( async function( url ) {
     rest_crawler.getHostStatusAndData( url ).then(results => {
-        console.log("results returned to foreach loop\n", JSON.stringify(results));
         getDataFromLSes(results);
+        console.log("health information\n", JSON.stringify(results));
 
     });
 
 });
 
 async function getDataFromLSes( results ) {
-    return new Promise ( function( resolve, reject ) {
         var hosts = results.data.hosts;
         // for each host in activehosts, generate urls and retrieve data
         async.each(hosts, function(host, cb) {
             if( host.status != 'alive' ) return;
             console.log("host", host);
-            var url = { type: "all", url: host.locator };
-            console.log("url", url);
-            var type_urls = ls_types.map(function(item) { 
-                return { type: item, url: url.url + "?type=" + item };
-            });
-            type_urls.push( url );
-            console.log("type_urls", type_urls);
-            getDataFromLS( type_urls );
+            getDataFromLS( host.locator );
 
 
         }, function(err) {
@@ -61,16 +53,30 @@ async function getDataFromLSes( results ) {
                 reject( err );
             } else {
                 console.log('All urls have been processed successfully');
-                resolve( results );
+                console.log("ls_results", ls_results);
+                console.log("results", results);
+                //resolve( results );
             }
 
         });
-    });
 }
 
-async function getDataFromLS( urls ) {
-    var ls_results = {};
-    return async.eachSeries( urls, function( urlObj, cb) {
+async function getDataFromLS( mainURL ) {
+    //return new Promise ( function( resolve, reject ) {
+    var url = { type: "all", url: mainURL };
+    console.log("url", url);
+    var ls_results = [];
+    var ls_result = {};
+    ls_result.url = url.url;
+    var type_urls = ls_types.map(function(item) { 
+        return { type: item, url: url.url + "?type=" + item };
+    });
+    type_urls.push( url );
+    console.log("type_urls", type_urls);
+    //var urls = type_urls.map(function(item) { return item.url  });
+    //console.log("urls", urls);
+    async.eachSeries( type_urls, function( urlObj, cb) {
+        if ( ! (  "types" in ls_result) ) ls_result.types = {};
         var url = urlObj.url;
         var type = urlObj.type;
         console.log("url getting data", url);
@@ -79,18 +85,54 @@ async function getDataFromLS( urls ) {
             results.num_records = results.data.length;
             delete results.data;
 
+
+            ls_result.url = url;
+            //results.type = type;
+
+            if ( type == "all" ) {
+                ls_result.request_time = results.request_time;
+                ls_result.num_records = results.num_records;
+                ls_results.push( ls_result );
+                return cb(null, ls_result);
+
+            }
+
+            ls_result.types[ type ] = results;
             console.log("results in getting data from LS\n", JSON.stringify(results));
-            //getDataFromLSes(results);
-            //rest_crawler.getHostStatusAndData( url ).then(results => {
+            console.log("ls_result", ls_result);
+            ls_results.push(ls_result);
+            return cb(null, ls_result);
 
         }).catch((err) => {
             console.error("no data from url", err);
-            results.error = err;
-            return;
+            //results.error = err;
+            return cb(err);
+            //reject(err);
             
         });
         
-        cb();
+    }, function(err) {
+        if ( err ) {
+            console.log("Error getting LS data");
+            return cb(err);
+
+        } else {
+            console.log("LS_RESULTS", ls_results);
+            return ls_results;
+            //cb(ls_results);
+            //resolve(ls_results);
+
+        }
+
+        
+        
+    //});
+
+
+    /*.then(results => {
+        console.log("ls_results", ls_results);
+    });
+      */  
     });
 
 }

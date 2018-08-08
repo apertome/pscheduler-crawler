@@ -92,8 +92,6 @@ exports.getHostStatusAndData = async function ( url ) {
 
         var activehostsPromise = exports.getRESTData( url );
 
-        console.log("activehostsPromise",activehostsPromise);
-
 
         Promise.all( [ pingPromise, activehostsPromise ] )
             .then(values => {
@@ -120,7 +118,7 @@ exports.getRESTData = async function( url ) {
             uri: url
         });
 
-        console.log("options", options);
+        //console.log("options", options);
         var startReqTime = new Date();
         return rp( options )
             .then((res) => {
@@ -130,6 +128,7 @@ exports.getRESTData = async function( url ) {
                 //_.extend(host.stats, { request_time: elapsed } );
                 var ret = {};
                 ret.request_time = elapsed;
+                ret.ts = startReqTime;
                 ret.data = res;
 
                 return ret;
