@@ -25,94 +25,94 @@ const global_options = {
 
 };
 
-activeHosts.forEach( function( url ) {
-    var result = getHostStatusAndData( url );
-    //console.log("url", url);
 
-
+activeHosts.forEach( async function( url ) {
+    getHostStatusAndData( url ).then(result => {
+        console.log("result returned to foreach loop\n", JSON.stringify(result));
+    });
 
 });
 
 async function getHostStatusAndData( url ) {
-    var result = {};
-    result.url = url;
-    var urlObj = new urllib.URL( url );
-    var hostname = urlObj.hostname;
-    var pingTime;
-    var host = {};
-    host.stats = {};
-    var alive = false;
-    var stats = {};
-    console.log("pinging hostname " + hostname + " ...");
-    const pingOptions = {
-        extra: ["-c 5"]
 
-    };
+    return new Promise ( function( resolve, reject ) {
 
-    // TODO: create a promise for when the host has been pinged and active hosts retrieved
-    var pingPromise = ping.promise.probe( hostname, pingOptions )
-    .then( function(res) {
-        console.log("res", res);
-        alive = res.alive;
-        if ( res.avg ) {
-            var decimal = parseFloat( res.avg );
-            if ( !isNaN( decimal ) ) {
-                stats.rtt = parseFloat( res.avg );
-            } else {
-                console.error("Non-numeric rtt returned; ignoring; value: ", res.avg);
+        var ts = new Date();
+        var result = {};
+        result.url = url;
+        result.ts = ts;
+        var urlObj = new urllib.URL( url );
+        var hostname = urlObj.hostname;
+        var pingTime;
+        var host = {};
+        host.stats = {};
+        var alive = false;
+        var stats = {};
+        console.log("pinging hostname " + hostname + " ...");
+        const pingOptions = {
+            extra: ["-c 5"]
 
-            }
-        }
-        return res;
+        };
 
-    }).catch((err) => {
-        console.error('error pinging host ' + hostname + '; ' + err);
-        alive = false;
-        //error.logged = true
-        //throw err
-        return new Promise((resolve,reject) => { resolve() });
-    })
-    .then( function( ) {
-        host.alive = alive;
-        host.stats = _.extend(host.stats, stats);
-        console.log("alive", alive);
-        console.log("stats", stats);
-        console.log("host", host);
-        result.host_status = host;
+        // TODO: create a promise for when the host has been pinged and active hosts retrieved
+        var pingPromise = ping.promise.probe( hostname, pingOptions )
+            .then( function(res) {
+                console.log("res", res);
+                alive = res.alive;
+                if ( res.avg ) {
+                    var decimal = parseFloat( res.avg );
+                    if ( !isNaN( decimal ) ) {
+                        stats.rtt = parseFloat( res.avg );
+                    } else {
+                        console.error("Non-numeric rtt returned; ignoring; value: ", res.avg);
 
-    });
+                    }
+                }
+                return res;
 
-    const options = _.extend( global_options,
-            {
-                uri: url
-            });
-
-    console.log("options", options);
-    var startReqTime = new Date();
-    var activehostsPromise = rp( options )
-        .then((res) => {
-            console.log("output", res);
-            var endReqTime = new Date();
-            var elapsed = endReqTime - startReqTime;
-            _.extend(host.stats, { request_time: elapsed } );
-            result.data = res;
-
-
-            return res;
-    });
-    /*
-    .then(() => {
-
-    });
-    */
-
-    Promise.all( [ pingPromise, activehostsPromise ] )
-        .then(values => {
-            console.log("result\n", JSON.stringify(result));
-            return result;
-
+            }).catch((err) => {
+                console.error('error pinging host ' + hostname + '; ' + err);
+                alive = false;
+                //error.logged = true
+                //throw err
+                return new Promise((resolve2,reject2) => { resolve2() });
+            })
+        .then( function( ) {
+            host.alive = alive;
+            host.stats = _.extend(host.stats, stats);
+            console.log("alive", alive);
+            console.log("stats", stats);
+            console.log("host", host);
+            result.host_status = host;
 
         });
+
+        const options = _.extend( global_options,
+                {
+                    uri: url
+                });
+
+        console.log("options", options);
+        var startReqTime = new Date();
+        var activehostsPromise = rp( options )
+            .then((res) => {
+                console.log("output", res);
+                var endReqTime = new Date();
+                var elapsed = endReqTime - startReqTime;
+                _.extend(host.stats, { request_time: elapsed } );
+                result.data = res;
+
+
+                return res;
+            });
+
+        Promise.all( [ pingPromise, activehostsPromise ] )
+            .then(values => {
+                console.log("result\n", JSON.stringify(result));
+                resolve(result);
+            });
+
+    });
 
 
 }
