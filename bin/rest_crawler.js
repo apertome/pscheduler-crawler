@@ -58,7 +58,7 @@ exports.getHostStatusAndData = async function ( url ) {
         // TODO: create a promise for when the host has been pinged and active hosts retrieved
         var pingPromise = ping.promise.probe( hostname, pingOptions )
             .then( function(res) {
-                console.log("res", res);
+                //console.log("res", res);
                 alive = res.alive;
                 if ( res.avg ) {
                     var decimal = parseFloat( res.avg );
@@ -81,13 +81,40 @@ exports.getHostStatusAndData = async function ( url ) {
         .then( function( ) {
             host.alive = alive;
             host.stats = _.extend(host.stats, stats);
+            /*
             console.log("alive", alive);
             console.log("stats", stats);
             console.log("host", host);
+            */
             result.host_status = host;
 
         });
 
+        var activehostsPromise = exports.getRESTData( url );
+
+        console.log("activehostsPromise",activehostsPromise);
+
+
+        Promise.all( [ pingPromise, activehostsPromise ] )
+            .then(values => {
+                //host.data = result.data
+                var value = values[1];
+                //console.log("VALUE", value);
+                //console.log("host", host);
+                result.request_time = value.request_time;
+                result.data =  value.data;
+                //console.log("result\n", JSON.stringify(result));
+                resolve(result);
+            }).catch(err => {
+                console.log("ERROR in promise all", err);
+            });
+
+    });
+
+
+}
+
+exports.getRESTData = async function( url ) {
         const options = _.extend( global_options,
         {
             uri: url
@@ -95,25 +122,22 @@ exports.getHostStatusAndData = async function ( url ) {
 
         console.log("options", options);
         var startReqTime = new Date();
-        var activehostsPromise = rp( options )
+        return rp( options )
             .then((res) => {
-                console.log("output", res);
+                //console.log("output", res);
                 var endReqTime = new Date();
                 var elapsed = endReqTime - startReqTime;
-                _.extend(host.stats, { request_time: elapsed } );
-                result.data = res;
+                //_.extend(host.stats, { request_time: elapsed } );
+                var ret = {};
+                ret.request_time = elapsed;
+                ret.data = res;
 
-                return res;
+                return ret;
+            }).catch((err) => {
+                console.log("Error reaching url", url, err);
+                throw err;
+                
             });
-
-        Promise.all( [ pingPromise, activehostsPromise ] )
-            .then(values => {
-                console.log("result\n", JSON.stringify(result));
-                resolve(result);
-            });
-
-    });
-
-
-}
+    
+};
 
