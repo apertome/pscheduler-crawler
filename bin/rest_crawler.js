@@ -25,16 +25,24 @@ const global_options = {
 
 };
 
-
 activeHosts.forEach( function( url ) {
+    var result = getHostStatusAndData( url );
+    //console.log("url", url);
+
+
+
+});
+
+async function getHostStatusAndData( url ) {
     var result = {};
-    var alive = false;
-    var stats = {};
-    console.log("url", url);
+    result.url = url;
     var urlObj = new urllib.URL( url );
     var hostname = urlObj.hostname;
     var pingTime;
     var host = {};
+    host.stats = {};
+    var alive = false;
+    var stats = {};
     console.log("pinging hostname " + hostname + " ...");
     const pingOptions = {
         extra: ["-c 5"]
@@ -42,12 +50,19 @@ activeHosts.forEach( function( url ) {
     };
 
     // TODO: create a promise for when the host has been pinged and active hosts retrieved
-    pingTime = new Date();
-    ping.promise.probe( hostname, pingOptions )
+    var pingPromise = ping.promise.probe( hostname, pingOptions )
     .then( function(res) {
         console.log("res", res);
         alive = res.alive;
-        if ( res.avg ) stats.rtt = res.avg;
+        if ( res.avg ) {
+            var decimal = parseFloat( res.avg );
+            if ( !isNaN( decimal ) ) {
+                stats.rtt = parseFloat( res.avg );
+            } else {
+                console.error("Non-numeric rtt returned; ignoring; value: ", res.avg);
+
+            }
+        }
         return res;
 
     }).catch((err) => {
@@ -59,8 +74,7 @@ activeHosts.forEach( function( url ) {
     })
     .then( function( ) {
         host.alive = alive;
-        host.stats = stats;
-        host.stats.pingTime = pingTime;
+        host.stats = _.extend(host.stats, stats);
         console.log("alive", alive);
         console.log("stats", stats);
         console.log("host", host);
@@ -74,17 +88,32 @@ activeHosts.forEach( function( url ) {
             });
 
     console.log("options", options);
-    rp( options )
+    var startReqTime = new Date();
+    var activehostsPromise = rp( options )
         .then((res) => {
             console.log("output", res);
+            var endReqTime = new Date();
+            var elapsed = endReqTime - startReqTime;
+            _.extend(host.stats, { request_time: elapsed } );
             result.data = res;
+
+
             return res;
-    })
+    });
+    /*
     .then(() => {
-        console.log("result", result);
 
     });
+    */
+
+    Promise.all( [ pingPromise, activehostsPromise ] )
+        .then(values => {
+            console.log("result\n", JSON.stringify(result));
+            return result;
 
 
+        });
 
-});
+
+}
+
