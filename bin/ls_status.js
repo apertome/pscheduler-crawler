@@ -32,10 +32,14 @@ const global_options = {
 var all_ls_results = [];
 
 async.each(activeHosts, async function( url ) {
-    var host_results = await rest_crawler.getHostStatusAndData( url );
+    var host_results;
+    await rest_crawler.getHostStatusAndData( url ).then((results) => {
+        host_results = results;
+
+    })
 
     getDataFromLSes(host_results)
-        .then((all_ls_results) => {
+        .then((results) => {
             console.log("ALL_LS_RESULTS", all_ls_results);
             console.log("health information\n", JSON.stringify(host_results));
         });
@@ -46,17 +50,17 @@ async function getDataFromLSes( results ) {
     return new Promise ( function( resolve, reject ) {
         var hosts = results.data.hosts;
         // for each host in activehosts, generate urls and retrieve data
-        async.each(hosts, async function(host) {
+        async.each(hosts, function(host, cb) {
             if( host.status != 'alive' ) return;
-            console.log("host", host);
+            console.log("HOST retrieving data", host.locator);
             getDataFromLS( host.locator ).then((ls_results) => {
                 all_ls_results.push( ls_results );
-                //cb(null, all_ls_results);
-                console.log("all_ls_results interim", JSON.stringify( all_ls_results ));
+                cb(null, ls_results);
+                console.log("all_ls_results interim\n", JSON.stringify( all_ls_results ));
             }).catch(err => {
                 console.error("Error getting data from LSes!");
-                //cb(err);
-                throw err;
+                cb(err);
+                //throw err;
                 //return;
 
             });
@@ -70,7 +74,7 @@ async function getDataFromLSes( results ) {
                 //console.log("ls_results", ls_results);
                 //console.log("results", results);
                 console.log("all_ls_results", all_ls_results);
-                resolve( all_ls_results );
+                return resolve( all_ls_results );
             }
 
         });

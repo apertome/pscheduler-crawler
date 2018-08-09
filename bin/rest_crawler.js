@@ -34,10 +34,8 @@ activeHosts.forEach( async function( url ) {
 });
 */
 
-exports.getHostStatusAndData = async function ( url ) {
-
+exports.getHostStatus = async function( url ) {
     return new Promise ( function( resolve, reject ) {
-
         var ts = new Date();
         var result = {};
         result.url = url;
@@ -55,10 +53,9 @@ exports.getHostStatusAndData = async function ( url ) {
 
         };
 
-        // TODO: create a promise for when the host has been pinged and active hosts retrieved
         var pingPromise = ping.promise.probe( hostname, pingOptions )
             .then( function(res) {
-                //console.log("res", res);
+                console.log("res", res);
                 alive = res.alive;
                 if ( res.avg ) {
                     var decimal = parseFloat( res.avg );
@@ -69,34 +66,52 @@ exports.getHostStatusAndData = async function ( url ) {
 
                     }
                 }
-                return res;
+                //return new Promise((resolve3,reject3) => { resolve3(res)});
+                //resolve( result );
+            host.alive = alive;
+            host.stats = _.extend(host.stats, stats);
+            /*
+            console.log("alive", alive);
+            console.log("stats", stats);
+            */
+            console.log("host", host);
+            result.host_status = host;
+             resolve( host );
 
             }).catch((err) => {
                 console.error('error pinging host ' + hostname + '; ' + err);
                 alive = false;
                 //error.logged = true
                 //throw err
-                return new Promise((resolve2,reject2) => { resolve2() });
+                //return new Promise((resolve2,reject2) => { resolve2() });
+                resolve(host);
             })
+    /*
         .then( function( ) {
-            host.alive = alive;
-            host.stats = _.extend(host.stats, stats);
-            /*
-            console.log("alive", alive);
-            console.log("stats", stats);
-            console.log("host", host);
-            */
-            result.host_status = host;
 
         });
+        */
+
+    });
+};
+
+exports.getHostStatusAndData = async function ( url ) {
+
+    return new Promise ( function( resolve, reject ) {
+
 
         var activehostsPromise = exports.getRESTData( url );
+        
+        var healthPromise = exports.getHostStatus( url );
 
 
-        Promise.all( [ pingPromise, activehostsPromise ] )
+        Promise.all( [ activehostsPromise, healthPromise ] )
             .then(values => {
+                var result = {};
+                console.log("Promise.all THEN");
                 //host.data = result.data
-                var value = values[1];
+                var value = values[0];
+                console.log("values", values);
                 //console.log("VALUE", value);
                 //console.log("host", host);
                 result.request_time = value.request_time;
