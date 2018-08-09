@@ -40,7 +40,7 @@ async.each(activeHosts, async function( url ) {
 
     getDataFromLSes(host_results)
         .then((results) => {
-            console.log("ALL_LS_RESULTS", all_ls_results);
+            console.log("ALL_LS_RESULTS", JSON.stringify(all_ls_results));
             console.log("health information\n", JSON.stringify(host_results));
         });
 
@@ -54,14 +54,22 @@ async function getDataFromLSes( results ) {
             if( host.status != 'alive' ) return;
             console.log("HOST retrieving data", host.locator);
             getDataFromLS( host.locator ).then((ls_results) => {
-                all_ls_results.push( ls_results );
-                cb(null, ls_results);
-                console.log("all_ls_results interim\n", JSON.stringify( all_ls_results ));
+                    //ls_results.health = health;
+                    console.log("ls_results with HEALTH", ls_results);
+
+                    all_ls_results.push( ls_results );
+
+                    //resolve2(ls_results);
+                    cb(null, ls_results);
+                    //return ls_results;
+                    console.log("all_ls_results interim\n", JSON.stringify( all_ls_results ));
             }).catch(err => {
                 console.error("Error getting data from LSes!");
+                console.error("host, err", host, err);
                 cb(err);
                 //throw err;
-                //return;
+                //reject2( err );
+                return;
 
             });
 
@@ -111,19 +119,30 @@ async function getDataFromLS( mainURL ) {
                 //results.type = type;
 
                 if ( type == "all" ) {
+                    var health = {};
+                    rest_crawler.getHostStatus( url )
+                .then((res) => {
+                    health = res;
+                    //host.health = res;
+                    console.log("HEALTH", health);
+                    ls_result.health = health;
                     ls_result.request_time = results.request_time;
                     ls_result.num_records = results.num_records;
                     ls_result.ts = results.ts;
                     ls_results.push( ls_result );
-                    return cb(null, ls_result);
-
-                }
-
-                ls_result.types[ type ] = results;
                 console.log("results in getting data from LS\n", JSON.stringify(results));
                 console.log("ls_result", ls_result);
+                    return cb(null, ls_result);
+                });
+
+                }  else {
+                    ls_result.types[ type ] = results;
+                console.log("results in getting data from LS\n", JSON.stringify(results));
+                console.log("ls_result", ls_result);
+                    return cb(null, ls_result);
+                }
+
                 //ls_results.push(ls_result);
-                return cb(null, ls_result);
 
             }).catch((err) => {
                 console.error("no data from url", err);

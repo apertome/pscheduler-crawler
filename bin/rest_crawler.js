@@ -68,7 +68,7 @@ exports.getHostStatus = async function( url ) {
                 }
                 //return new Promise((resolve3,reject3) => { resolve3(res)});
                 //resolve( result );
-            host.alive = alive;
+            host.reachable = true;
             host.stats = _.extend(host.stats, stats);
             /*
             console.log("alive", alive);
@@ -76,7 +76,7 @@ exports.getHostStatus = async function( url ) {
             */
             console.log("host", host);
             result.host_status = host;
-             resolve( host );
+            resolve( host );
 
             }).catch((err) => {
                 console.error('error pinging host ' + hostname + '; ' + err);
@@ -116,7 +116,10 @@ exports.getHostStatusAndData = async function ( url ) {
                 //console.log("host", host);
                 result.request_time = value.request_time;
                 result.data =  value.data;
-                //console.log("result\n", JSON.stringify(result));
+                result.ts = value.ts;
+                result.stats = value.stats;
+                result.reachable = value.reachable;
+                console.log("result\n", JSON.stringify(result));
                 resolve(result);
             }).catch(err => {
                 console.log("ERROR in promise all", err);
