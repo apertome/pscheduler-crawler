@@ -113,6 +113,7 @@ exports.getHostStatusAndData = async function ( url ) {
 }
 
 exports.getRESTData = async function( url ) {
+    return new Promise ( function( resolve, reject ) {
         const options = _.extend( global_options,
         {
             uri: url
@@ -131,12 +132,16 @@ exports.getRESTData = async function( url ) {
                 ret.ts = startReqTime;
                 ret.data = res;
 
+                resolve(ret);
+
                 return ret;
             }).catch((err) => {
                 console.log("Error reaching url", url, err);
+                reject(err);
                 throw err;
                 
             });
+    });
     
 };
 
