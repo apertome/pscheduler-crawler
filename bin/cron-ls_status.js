@@ -20,8 +20,7 @@ const activeHosts = ['http://ps1.es.net:8096/lookup/activehosts.json'];
 
 const ls_types = [ 'service', 'host', 'interface', 'psmetadata', 'person', 'pstest' ];
 
-//const data_path = '/ps_data/sls';
-const data_path = '/ps_data/sls/testing';
+const data_path = '/ps_data/sls';
 
 
 // below, set flag to 'a' for append or 'w' for write
@@ -42,31 +41,20 @@ const global_options = {
 const out_format = 'jsonl';
 
 var all_ls_results = [];
-var activehosts_lookup = {};
 
 async.each(activeHosts, async function( url ) {
-    var activehosts_status;
+    var host_results;
     await rest_crawler.getHostStatusAndData( url ).then((results) => {
-        activehosts_status = results;
-        activehosts_status.data.hosts.map( function(item) {
-            activehosts_lookup[item.locator] = {
-                   status: item.status,
-                   ts: activehosts_status.ts,
-                   request_time: activehosts_status.request_time
-            };
-        });
-
+        host_results = results;
 
     })
 
-    getDataFromLSes(activehosts_status)
+    getDataFromLSes(host_results)
         .then((results) => {
             //console.log("ALL_LS_RESULTS", JSON.stringify(all_ls_results));
-            console.log("health information\n", JSON.stringify(activehosts_status));
-
+            console.log("health information\n", JSON.stringify(host_results));
             save_json_file( data_path + "/ls_stats_all.jsonl", all_ls_results ); 
-            save_json_file( data_path + "/activehosts.jsonl" , activehosts_status ); 
-
+            save_json_file( data_path + "/activehosts.jsonl" , host_results ); 
         });
 
 });
@@ -117,6 +105,7 @@ async function getDataFromLSes( results ) {
 async function getDataFromLS( mainURL ) {
     return new Promise ( function( resolve, reject ) {
         var url = { type: "all", url: mainURL };
+        console.log("url", url);
         var ls_results = [];
         var ls_result = {};
         ls_result.url = url.url;
@@ -124,7 +113,7 @@ async function getDataFromLS( mainURL ) {
             return { type: item, url: url.url + "?type=" + item };
         });
         type_urls.push( url );
-        //console.log("type_urls", type_urls);
+        console.log("type_urls", type_urls);
         //var urls = type_urls.map(function(item) { return item.url  });
         //console.log("urls", urls);
         async.eachSeries( type_urls, function( urlObj, cb) {
@@ -153,7 +142,6 @@ async function getDataFromLS( mainURL ) {
                     ls_result.request_time = results.request_time;
                     ls_result.num_records = results.num_records;
                     ls_result.ts = results.ts;
-                    ls_result.activehosts_status = activehosts_lookup[url];
                     ls_results.push( ls_result );
                 //console.log("results in getting data from LS\n", JSON.stringify(results));
                 //console.log("ls_result", ls_result);
@@ -162,8 +150,8 @@ async function getDataFromLS( mainURL ) {
 
                 }  else {
                     ls_result.types[ type ] = results;
-                    console.log("results in getting data from LS\n", JSON.stringify(results));
-                    //console.log("ls_result", ls_result);
+                console.log("results in getting data from LS\n", JSON.stringify(results));
+                console.log("ls_result", ls_result);
                     return cb(null, ls_result);
                 }
 

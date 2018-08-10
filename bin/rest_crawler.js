@@ -55,7 +55,7 @@ exports.getHostStatus = async function( url ) {
 
         var pingPromise = ping.promise.probe( hostname, pingOptions )
             .then( function(res) {
-                console.log("res", res);
+                //console.log("res", res);
                 alive = res.alive;
                 if ( res.avg ) {
                     var decimal = parseFloat( res.avg );
@@ -70,11 +70,12 @@ exports.getHostStatus = async function( url ) {
                 //resolve( result );
             host.reachable = true;
             host.stats = _.extend(host.stats, stats);
+            host.ts = ts;
             /*
             console.log("alive", alive);
             console.log("stats", stats);
             */
-            console.log("host", host);
+            //console.log("host", host);
             result.host_status = host;
             resolve( host );
 
@@ -111,7 +112,7 @@ exports.getHostStatusAndData = async function ( url ) {
                 console.log("Promise.all THEN");
                 //host.data = result.data
                 var value = values[0];
-                console.log("values", values);
+                //console.log("values", values);
                 //console.log("VALUE", value);
                 //console.log("host", host);
                 result.request_time = value.request_time;
@@ -119,7 +120,7 @@ exports.getHostStatusAndData = async function ( url ) {
                 result.ts = value.ts;
                 result.stats = value.stats;
                 result.reachable = value.reachable;
-                console.log("result\n", JSON.stringify(result));
+                //console.log("result\n", JSON.stringify(result));
                 resolve(result);
             }).catch(err => {
                 console.log("ERROR in promise all", err);
