@@ -1,5 +1,5 @@
 #!/bin/bash
-curl -H 'Content-Type: application/json' 'http://localhost:9200/results/_search?pretty' -d '{
+curl -H 'Content-Type: application/json' 'http://localhost:9200/_all/_search?pretty' -d '{
    "from": 0, "size": 50,
    "query": {
         "bool": {

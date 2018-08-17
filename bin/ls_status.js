@@ -11,6 +11,17 @@ const fs_writeFile = util.promisify(fs.writeFile);
 const fs_readFile = util.promisify(fs.readFile);
 const urllib = require('url');
 const _ = require('underscore');
+const argv = require('optimist').argv;
+
+/*
+switch(argv._[0]) {
+    case "datapath":
+        datapath();
+        break;
+    default:
+          console.log(fs.readFileSync(__dirname+"/usage.txt", {encoding: "utf8"}));
+}
+*/
 
 // mine
 const rest_crawler = require('./rest_crawler.js');
@@ -20,8 +31,11 @@ const activeHosts = ['http://ps1.es.net:8096/lookup/activehosts.json'];
 
 const ls_types = [ 'service', 'host', 'interface', 'psmetadata', 'person', 'pstest' ];
 
+const DEFAULT_PATH = '/ps_data/sls/testing';
 //const data_path = '/ps_data/sls';
-const data_path = '/ps_data/sls/testing';
+const data_path = getpath();
+
+console.log("data_path " + data_path);
 
 
 // below, set flag to 'a' for append or 'w' for write
@@ -145,20 +159,24 @@ async function getDataFromLS( mainURL ) {
                 if ( type == "all" ) {
                     var health = {};
                     rest_crawler.getHostStatus( url )
-                .then((res) => {
-                    health = res;
-                    //host.health = res;
-                    //console.log("HEALTH", health);
-                    ls_result.health = health;
-                    ls_result.request_time = results.request_time;
-                    ls_result.num_records = results.num_records;
-                    ls_result.ts = results.ts;
-                    ls_result.activehosts_status = activehosts_lookup[url];
-                    ls_results.push( ls_result );
-                //console.log("results in getting data from LS\n", JSON.stringify(results));
-                //console.log("ls_result", ls_result);
-                    return cb(null, ls_result);
-                });
+                        .then((res) => {
+                            health = res;
+                            //host.health = res;
+                            //console.log("HEALTH", health);
+                            ls_result.health = health;
+                            ls_result.request_time = results.request_time;
+                            ls_result.num_records = results.num_records;
+                            ls_result.ts = results.ts;
+                            ls_result.activehosts_status = activehosts_lookup[url];
+                            ls_results.push( ls_result );
+                            //console.log("results in getting data from LS\n", JSON.stringify(results));
+                            //console.log("ls_result", ls_result);
+                            return cb(null, ls_result);
+                        }).catch((err) => {
+                            console.log("Error getting host status ", err);
+                        
+                        });
+                        // TODO: ADD catch block
 
                 }  else {
                     ls_result.types[ type ] = results;
@@ -169,10 +187,15 @@ async function getDataFromLS( mainURL ) {
 
                 //ls_results.push(ls_result);
 
-            }).catch((err) => {
-                console.error("no data from url", err);
-                results.error = err;
-                return cb(null, results);
+            }).catch((obj) => {
+                var res = obj.res;
+                var err = obj.err;
+                console.error("no data from url (moving on)");
+                //console.error("no data from url", err);
+                console.log("res", res);
+                res.error = err;
+                ls_results.push( res );
+                return cb(null, res);
                 //reject(err);
 
             });
@@ -223,4 +246,12 @@ function save_json_file( filename, data ) {
             resolve();
         });
     });
+}
+
+function getpath() {
+    var path = DEFAULT_PATH;
+    if( argv.datapath ) {
+       path = argv.datapath; 
+    }
+    return path;
 }

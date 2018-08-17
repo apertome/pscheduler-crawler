@@ -55,7 +55,7 @@ exports.getHostStatus = async function( url ) {
 
         var pingPromise = ping.promise.probe( hostname, pingOptions )
             .then( function(res) {
-                //console.log("res", res);
+                console.log("res", res);
                 alive = res.alive;
                 if ( res.avg ) {
                     var decimal = parseFloat( res.avg );
@@ -82,6 +82,7 @@ exports.getHostStatus = async function( url ) {
             }).catch((err) => {
                 console.error('error pinging host ' + hostname + '; ' + err);
                 alive = false;
+                host.reachable = false;
                 //error.logged = true
                 //throw err
                 //return new Promise((resolve2,reject2) => { resolve2() });
@@ -140,7 +141,7 @@ exports.getRESTData = async function( url ) {
 
         //console.log("options", options);
         var startReqTime = new Date();
-        return rp( options )
+        rp( options )
             .then((res) => {
                 //console.log("output", res);
                 var endReqTime = new Date();
@@ -150,14 +151,24 @@ exports.getRESTData = async function( url ) {
                 ret.request_time = elapsed;
                 ret.ts = startReqTime;
                 ret.data = res;
+                ret.reachable = true;
 
                 resolve(ret);
 
-                return ret;
             }).catch((err) => {
-                console.log("Error reaching url", url, err);
-                reject(err);
-                throw err;
+                console.log("Error reaching url", url);
+                //console.log("Error reaching url", url, err);
+                var out = {};
+                var ret = {}
+                ret.ts = startReqTime;
+                ret.url = url;
+                ret.reachable = false;
+                out.res = ret;
+                delete err.options;
+                delete err.error;
+                out.err = err;
+                reject(out);
+                //throw err;
                 
             });
     });
