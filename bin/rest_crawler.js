@@ -54,8 +54,7 @@ exports.getHostStatus = async function( url ) {
         };
 
         var pingPromise = ping.promise.probe( hostname, pingOptions )
-            .then( function(res) {
-                console.log("res", res);
+            .then( function(res ) {
                 alive = res.alive;
                 if ( res.avg ) {
                     var decimal = parseFloat( res.avg );
@@ -68,8 +67,8 @@ exports.getHostStatus = async function( url ) {
                 }
                 //return new Promise((resolve3,reject3) => { resolve3(res)});
                 //resolve( result );
-            host.reachable = true;
             host.stats = _.extend(host.stats, stats);
+            host.reachable = true;
             host.ts = ts;
             /*
             console.log("alive", alive);
@@ -88,11 +87,6 @@ exports.getHostStatus = async function( url ) {
                 //return new Promise((resolve2,reject2) => { resolve2() });
                 resolve(host);
             })
-    /*
-        .then( function( ) {
-
-        });
-        */
 
     });
 };
@@ -110,7 +104,6 @@ exports.getHostStatusAndData = async function ( url ) {
         Promise.all( [ activehostsPromise, healthPromise ] )
             .then(values => {
                 var result = {};
-                console.log("Promise.all THEN");
                 //host.data = result.data
                 var value = values[0];
                 //console.log("values", values);

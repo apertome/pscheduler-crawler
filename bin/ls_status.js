@@ -58,6 +58,11 @@ const out_format = 'jsonl';
 var all_ls_results = [];
 var activehosts_lookup = {};
 
+
+console.debug("====================================");
+console.debug("ls_status crawler running");
+console.debug("====================================");
+
 async.each(activeHosts, async function( url ) {
     var activehosts_status;
     await rest_crawler.getHostStatusAndData( url ).then((results) => {
@@ -161,16 +166,13 @@ async function getDataFromLS( mainURL ) {
                     rest_crawler.getHostStatus( url )
                         .then((res) => {
                             health = res;
-                            //host.health = res;
-                            //console.log("HEALTH", health);
                             ls_result.health = health;
                             ls_result.request_time = results.request_time;
                             ls_result.num_records = results.num_records;
                             ls_result.ts = results.ts;
                             ls_result.activehosts_status = activehosts_lookup[url];
+                            ls_result.reachable = health.reachable;
                             ls_results.push( ls_result );
-                            //console.log("results in getting data from LS\n", JSON.stringify(results));
-                            //console.log("ls_result", ls_result);
                             return cb(null, ls_result);
                         }).catch((err) => {
                             console.log("Error getting host status ", err);
@@ -191,10 +193,16 @@ async function getDataFromLS( mainURL ) {
                 var res = obj.res;
                 var err = obj.err;
                 console.error("no data from url (moving on)");
+                var type = urlObj.type;
+
                 //console.error("no data from url", err);
-                console.log("res", res);
-                res.error = err;
-                ls_results.push( res );
+
+                if ( type == "all " ) {
+                    res.activehosts_status = activehosts_lookup[res.url];
+                    console.log("failed res", res);
+                    res.error = err;
+                    ls_results.push( res );
+                }
                 return cb(null, res);
                 //reject(err);
 
