@@ -27,6 +27,7 @@ switch(argv._[0]) {
 const rest_crawler = require('./rest_crawler.js');
 const jsonltools = require('./jsonltools');
 
+//const activeHosts = ['http://perfsonar-dev.grnoc.iu.edu/activehosts-test.json']; // TODO: FIX!!!
 const activeHosts = ['http://ps1.es.net:8096/lookup/activehosts.json'];
 
 const ls_types = [ 'service', 'host', 'interface', 'psmetadata', 'person', 'pstest' ];
@@ -95,7 +96,7 @@ async function getDataFromLSes( results ) {
         var hosts = results.data.hosts;
         // for each host in activehosts, generate urls and retrieve data
         async.each(hosts, function(host, cb) {
-            if( host.status != 'alive' ) return;
+            //if( host.status != 'alive' ) return;
             console.log("HOST retrieving data", host.locator);
             getDataFromLS( host.locator ).then((ls_results) => {
                     //ls_results.health = health;
@@ -190,6 +191,7 @@ async function getDataFromLS( mainURL ) {
                 //ls_results.push(ls_result);
 
             }).catch((obj) => {
+                console.log("OBJ", obj);
                 var res = obj.res;
                 var err = obj.err;
                 console.error("no data from url (moving on)");
@@ -197,12 +199,12 @@ async function getDataFromLS( mainURL ) {
 
                 //console.error("no data from url", err);
 
-                if ( type == "all " ) {
+                if ( type == "all" ) {
                     res.activehosts_status = activehosts_lookup[res.url];
-                    console.log("failed res", res);
                     res.error = err;
                     ls_results.push( res );
                 }
+
                 return cb(null, res);
                 //reject(err);
 

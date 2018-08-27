@@ -152,15 +152,17 @@ exports.getRESTData = async function( url ) {
                 console.log("Error reaching url", url);
                 //console.log("Error reaching url", url, err);
                 var out = {};
-                var ret = {}
+                var ret = {};
                 ret.ts = startReqTime;
                 ret.url = url;
+                ret.data = [];
                 ret.reachable = false;
                 out.res = ret;
                 delete err.options;
                 delete err.error;
                 out.err = err;
                 reject(out);
+                //resolve(out);
                 //throw err;
                 
             });
