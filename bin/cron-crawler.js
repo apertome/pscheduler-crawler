@@ -34,9 +34,7 @@ const util = require('util');
 const fs_writeFile = util.promisify(fs.writeFile);
 const fs_readFile = util.promisify(fs.readFile);
 
-const DEFAULT_PATH = '/ps_data/testing/';
-
-const out_path = getpath();
+const out_path = '/ps_data/live/';
 
 const out_format = 'jsonl';
 
@@ -555,12 +553,4 @@ async function add_pscheduler_info( objArray, host, url ) {
         resolve();
     });
 
-}
-
-function getpath() {
-    var path = DEFAULT_PATH;
-    if( argv.datapath ) {
-       path = argv.datapath; 
-    }
-    return path;
 }
